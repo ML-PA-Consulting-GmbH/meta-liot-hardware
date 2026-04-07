@@ -8,7 +8,7 @@ EMMC_SIZE_MB ?= "7280"
 DEPLOY_DIR_IMAGE_PATH = "${DEPLOY_DIR_IMAGE}"
 
 IMAGE_FSTYPES += "partup"
-
+IMAGE_INSTALL:append = " snapd"
 # Lokale Dateien brauchen keine Checksummen im Recipe
 SRC_URI += "file://generate-partup.py"
 
