@@ -3,9 +3,6 @@ LICENSE = "MIT"
 
 inherit python3native
 
-# Arbeitsverzeichnis
-WORKDIR = "${WORKDIR}"
-
 # Parameter setzen
 BOARDNAME ?= "phyboard-segin-imx93-2"
 EMMC_SIZE_MB ?= "7280"
