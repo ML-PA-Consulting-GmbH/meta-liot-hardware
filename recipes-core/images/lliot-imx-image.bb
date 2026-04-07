@@ -1,6 +1,5 @@
 require recipes-core/images/phytec-headless-image.bb
 
-DESCRIPTION = "PHYTEC headless image with RAUC A/B and persistent snapd partition"
+DESCRIPTION = "L.IOT headles image with RAUC and snapd integration"
 
-# Partup Layout nutzen
 IMAGE_FSTYPES += "partup"
