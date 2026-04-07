@@ -1,54 +1,66 @@
+SUMMARY = "edge yocto custom image with RAUC, snapd with partup packaging"
+LICENSE = "CLOSED"
+
 require recipes-images/images/phytec-headless-image.bb
 
-DESCRIPTION = "Edge headless image with RAUC and snapd integration"
-
-# Parameter
+#  Default values for variables, can be overridden by local.conf or machine configuration
 BOARDNAME ?= "edge-imx93-yo"
-EMMC_SIZE_MB ?= "7280"
+EMMC_SIZE_MB ?= "7260"
 DEPLOY_DIR_IMAGE_PATH = "${DEPLOY_DIR_IMAGE}"
 
 IMAGE_FSTYPES += "partup"
+IMAGE_INSTALL:append = " snapd"
+
+# Add the generate-partup.py script to the source files for this recipe
 SRC_URI += "file://generate-partup.py"
 
-python do_generate_partup_config() {
+# This function will be called after the image is built to generate the partup package
+python do_generate_partup_package() {
     import subprocess
     import os
 
-    # 1. Suche das Skript direkt in den Layer-Pfaden (statt im WORKDIR)
-    # FILESPATH enthält alle 'files' Ordner der Layer
-    script_name = "generate-partup.py"
-    script = bb.utils.which(d.getVar('FILESPATH'), script_name)
+    script = bb.utils.which(d.getVar('FILESPATH'), 'generate-partup.py')
+    if not script:
+        bb.fatal("Skript generate-partup.py nicht im Layer gefunden!")
 
-    if not script or not os.path.exists(script):
-        # Fallback: Suche relativ zum Recipe-File
-        this_dir = os.path.dirname(d.getVar('FILE'))
-        script = os.path.join(this_dir, "files", script_name)
-
-    if not os.path.exists(script):
-        bb.fatal(f"Kritischer Fehler: {script_name} wurde nirgendwo gefunden!")
-
-    # Parameter holen
     board = d.getVar('BOARDNAME')
     size = d.getVar('EMMC_SIZE_MB')
     deploy_dir = d.getVar('DEPLOY_DIR_IMAGE_PATH')
+    rootfs_link = d.getVar('IMAGE_LINK_NAME')
+    seed_filename = f"{deploy_dir}/edge-imx93-yo-seed.tar.gz"
+    yaml_config = "layout.yaml"
+    package_output = f"{board}.partup.pkg"
 
-    if not os.path.exists(deploy_dir):
-        os.makedirs(deploy_dir)
-
-    # 2. Skript ausführen
+    files_to_include = [
+        "imx-boot",
+        "Image",
+        "oftree",
+        f"{rootfs_link}.ext4",
+        f"{seed_filename}"
+    ]
     try:
-        bb.note(f"Nutze Skript direkt aus Layer: {script}")
-        subprocess.check_call(['python3', script, board, size, deploy_dir])
+        #  Generate the YAML configuration file for partup
+        subprocess.check_call(['python3', script, board, size, deploy_dir, rootfs_link, seed_filename])
     except subprocess.CalledProcessError as e:
-        bb.fatal(f"Fehler beim Ausführen des Partup-Generators: {e}")
+        bb.fatal(f"Error in creating yaml file: {e}")
 
-    # 3. Log-Ausgabe des Inhalts
-    generated_file = os.path.join(deploy_dir, f"{board}.partup")
-    if os.path.exists(generated_file):
-        with open(generated_file, 'r') as f:
-            bb.plain(f"\n--- Generierte Partup-Konfiguration ({board}.partup) ---\n{f.read()}\n---------------------------------------\n")
+    # Now call partup to create the package
+    cmd = ['partup', 'package', '-f' , package_output] + files_to_include + [yaml_config]
+
+    try:
+        # Run the partup command in the deploy directory
+        subprocess.check_call(cmd, cwd=deploy_dir)
+        
+        with open(os.path.join(deploy_dir, yaml_config), 'r') as f:
+            bb.plain(f"\n--- PARTUP CONFIG GENERATED ---\n{f.read()}\n")
+            
+        bb.plain(f"SUCCESS: partup packge created in {deploy_dir}/{package_output}")
+    except subprocess.CalledProcessError as e:
+        bb.fatal(f"ERROR: partup package creation failed (check please if all needed files are in the deploy folder): {e}")
 }
 
-# Task-Reihenfolge (do_unpack/addtask unpack können wir hier weglassen)
-addtask generate_partup_config after do_rootfs before do_image_partup
+# Add the generate_partup_package task to the build process
+addtask generate_partup_package after do_image_complete before do_build
 
+# Ensure that the generate_partup_package task runs after the necessary files are in place
+do_generate_partup_package[depends] += "partup-native:do_populate_sysroot"

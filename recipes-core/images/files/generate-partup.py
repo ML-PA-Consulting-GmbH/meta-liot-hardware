@@ -2,63 +2,91 @@
 import sys
 import os
 
-# Argumente einlesen
-BOARD = sys.argv[1]
-TOTAL_MB = int(sys.argv[2])
-OUTPUT_DIR = sys.argv[3]
+# This script generates a YAML file for partitioning an SD card for the given board.
+# It takes the following command-line arguments:
+BOARD       = sys.argv[1]
+TOTAL_MB    = int(sys.argv[2])
+OUTPUT_DIR  = sys.argv[3]
+ROOTFS_BASE = sys.argv[4]
+SEED_FILENAME = sys.argv[5]
 
-# Fixe Partitionen (MiB)
-BOOT_SIZE = 128
-CONFIG_SIZE = 60
-SNAP_SIZE = 600
+ # Define filenames for the input files
+ROOTFS_FILENAME = f"{ROOTFS_BASE}.rootfs.ext4"
+KERNEL_FILENAME = "Image"
+DTB_FILENAME    = "oftree"
+BOOT_FILENAME   = "imx-boot"
 
-# Rootfs A/B proportional berechnen
-# (Wir lassen am Ende oft ein paar MB Puffer für die GPT-Tabelle)
-rootfs_total = TOTAL_MB - (BOOT_SIZE * 2 + CONFIG_SIZE + SNAP_SIZE + 4)
-rootfs_size = rootfs_total // 2
+# Partition sizes in MiB
+BOOT_SIZE   = 128
+CONFIG_SIZE = 55
+SNAP_SIZE   = 500
 
-# YAML Partup erzeugen
-# Hinweis: 'image' Parameter sind Platzhalter, die das partup-Tool 
-# in Yocto meist automatisch mit den .img/.bin Dateien füllt.
-yaml_content = f"""
-# Partup Konfiguration für {BOARD}
-disk:
-  device: mmcblk0
-  size: {TOTAL_MB}MiB
+# Calculate the available space for the root filesystem partitions
+available_pool = TOTAL_MB - (BOOT_SIZE * 2 + CONFIG_SIZE + SNAP_SIZE + 10)
+rootfs_size = available_pool // 2
+
+# Generate the YAML content for the partition layout
+yaml_template = f"""api-version: 1
+disklabel: gpt
+
+mmc:
+  boot-partitions:
+    enable: 1
+    binaries:
+      - input-offset: 0
+        output-offset: 0
+        input:
+          filename: {BOOT_FILENAME}
 
 partitions:
-  - name: boot0
+  - label: BOOT0
     type: primary
-    fstype: vfat
+    filesystem: fat32
     size: {BOOT_SIZE}MiB
-  - name: boot1
-    type: primary
-    fstype: vfat
-    size: {BOOT_SIZE}MiB
-  - name: config
-    type: primary
-    fstype: ext4
-    size: {CONFIG_SIZE}MiB
-  - name: rootfsA
-    type: primary
-    fstype: ext4
-    size: {rootfs_size}MiB
-  - name: rootfsB
-    type: primary
-    fstype: ext4
-    size: {rootfs_size}MiB
-  - name: snapdata
-    type: primary
-    fstype: ext4
-    size: {SNAP_SIZE}MiB
-"""
+    offset: 4MiB
+    input:
+      - filename: {KERNEL_FILENAME}
+      - filename: {DTB_FILENAME}
 
-# Datei schreiben (Endung .partup ist Standard bei Phytec)
-file_name = f"{BOARD}.partup"
+  - label: BOOT1
+    type: primary
+    filesystem: fat32
+    size: {BOOT_SIZE}MiB
+    input:
+      - filename: {KERNEL_FILENAME}
+      - filename: {DTB_FILENAME}
+
+  - label: CONFIG
+    type: primary
+    filesystem: ext4
+    size: {CONFIG_SIZE}MiB
+
+  - label: ROOT0
+    type: primary
+    filesystem: null
+    size: {rootfs_size}MiB
+    input:
+      - filename: {ROOTFS_FILENAME}
+
+  - label: ROOT1
+    type: primary
+    filesystem: null
+    size: {rootfs_size}MiB
+    input:
+      - filename: {ROOTFS_FILENAME}
+
+  - label: SNAPDATA
+    type: primary
+    filesystem: ext4
+    size: {SNAP_SIZE}MiB
+    input:
+      - filename: {SEED_FILENAME}
+"""
+# Write the generated YAML content to a file
+file_name = "layout.yaml"
 file_path = os.path.join(OUTPUT_DIR, file_name)
 
 with open(file_path, "w") as f:
-    f.write(yaml_content.strip())
+    f.write(yaml_template)
 
-print(f"SUCCESS: {file_path} erzeugt!")
-print(f"Layout: Rootfs A/B je {rootfs_size}MiB, Snapdata {SNAP_SIZE}MiB")
+print(f"SUCCESS: {file_name} was created for {BOARD}.")
