@@ -31,6 +31,11 @@ python do_generate_partup_config() {
         bb.fatal(f"Fehler bei Partup-Generierung: {e}")
 }
 
-# WICHTIG: do_unpack hinzufügen!
+# 1. Den Unpack-Task für das Image-Recipe reaktivieren
+addtask unpack before do_generate_partup_config
+
+# 2. Dein Skript nach dem Rootfs, aber vor dem Packaging ausführen
 addtask generate_partup_config after do_rootfs before do_image_partup
+
+# 3. Explizite Abhängigkeit setzen, damit die Dateien wirklich im WORKDIR liegen
 do_generate_partup_config[depends] += "${PN}:do_unpack"
