@@ -1,6 +1,6 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
-do_configure_prepend() {
+do_configure() {
     python3 ${THISDIR}/files/generate-partup.py ${BOARDNAME} ${EMMC_SIZE_MB}
 }
 
