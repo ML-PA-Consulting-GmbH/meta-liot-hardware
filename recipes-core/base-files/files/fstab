@@ -1,0 +1,2 @@
+LABEL=snapdata /var/lib/snapd ext4 defaults 0 2
+LABEL=snapdata /var/snap none bind 0 0
