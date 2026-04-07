@@ -15,6 +15,7 @@ do_generate() {
     import subprocess
 
     script = os.path.join(d.getVar('THISDIR', True), 'files', 'generate-partup.py')
+    echo ${script}
     subprocess.run(['python3', script, d.getVar('BOARDNAME', True), d.getVar('EMMC_SIZE_MB', True)], check=True)
 }
 
