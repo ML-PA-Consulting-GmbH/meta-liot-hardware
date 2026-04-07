@@ -14,20 +14,23 @@ python do_generate_partup_config() {
     import subprocess
     import os
 
+    # WORKDIR prüfen
     workdir = d.getVar('WORKDIR')
     script = os.path.join(workdir, 'generate-partup.py')
+    
+    if not os.path.exists(script):
+        bb.fatal(f"Skript nicht gefunden in {script}. Inhalt von WORKDIR: {os.listdir(workdir)}")
+
     board = d.getVar('BOARDNAME')
     size = d.getVar('EMMC_SIZE_MB')
     deploy_dir = d.getVar('DEPLOY_DIR_IMAGE_PATH')
 
-    if not os.path.exists(deploy_dir):
-        os.makedirs(deploy_dir)
-
     try:
-        bb.note(f"Starte Partup-Konfigurations-Generator für {board}...")
         subprocess.check_call(['python3', script, board, size, deploy_dir])
     except subprocess.CalledProcessError as e:
-        bb.fatal(f"Fehler bei der Partup-Generierung: {e}")
+        bb.fatal(f"Fehler bei Partup-Generierung: {e}")
 }
 
+# WICHTIG: do_unpack hinzufügen!
 addtask generate_partup_config after do_rootfs before do_image_partup
+do_generate_partup_config[depends] += "${PN}:do_unpack"
