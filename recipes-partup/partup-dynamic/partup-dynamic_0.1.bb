@@ -11,12 +11,11 @@ EMMC_SIZE_MB ?= "7280"
 SRC_URI = "file://generate-partup.py"
 
 do_generate() {
-    import os
-    import subprocess
+    THISDIR="$(dirname "$0")"
+    SCRIPT="$THISDIR/generate-partup.py"
 
-    script = os.path.join(d.getVar('THISDIR', True), 'files', 'generate-partup.py')
-    echo ${script}
-    subprocess.run(['python3', script, d.getVar('BOARDNAME', True), d.getVar('EMMC_SIZE_MB', True)], check=True)
+    # Aufruf des Python-Skripts
+    python3 "$SCRIPT" "$BOARDNAME" "$EMMC_SIZE_MB"
 }
 
 # Nur generate-Task, kein flashen
