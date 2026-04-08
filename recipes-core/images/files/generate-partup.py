@@ -11,7 +11,7 @@ ROOTFS_BASE = sys.argv[4]
 SEED_FILENAME = sys.argv[5]
 
  # Define filenames for the input files
-ROOTFS_FILENAME = f"{ROOTFS_BASE}.rootfs.ext4"
+ROOTFS_FILENAME = f"{ROOTFS_BASE}.ext4"
 KERNEL_FILENAME = "Image"
 DTB_FILENAME    = "oftree"
 BOOT_FILENAME   = "imx-boot"
