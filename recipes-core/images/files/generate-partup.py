@@ -2,33 +2,38 @@
 import sys
 import os
 
-# This script generates a YAML file for partitioning an SD card for the given board.
-# It takes the following command-line arguments:
-BOARD       = sys.argv[1]
-TOTAL_MB    = int(sys.argv[2])
-OUTPUT_DIR  = sys.argv[3]
-ROOTFS_BASE = sys.argv[4]
-SEED_FILENAME = sys.argv[5]
+# Argumente einlesen
+BOARD         = sys.argv[1]
+TOTAL_MB      = int(sys.argv[2])
+OUTPUT_DIR    = sys.argv[3]  # Dies sollte nun dein pkg_work_dir sein
+ROOTFS_BASE   = sys.argv[4]
+SEED_FILENAME = os.path.basename(sys.argv[5]) # Nur Dateiname
 
- # Define filenames for the input files
+# Dateinamen definieren
 ROOTFS_FILENAME = f"{ROOTFS_BASE}.ext4"
-KERNEL_FILENAME = "Image"
-DTB_FILENAME    = "oftree"
 BOOT_FILENAME   = "imx-boot"
 
-# Partition sizes in MiB
+# Partitionen berechnen
 BOOT_SIZE   = 128
-CONFIG_SIZE = 55
+CONFIG_SIZE = 64
 SNAP_SIZE   = 500
-
-# Calculate the available space for the root filesystem partitions
 available_pool = TOTAL_MB - (BOOT_SIZE * 2 + CONFIG_SIZE + SNAP_SIZE + 10)
 rootfs_size = available_pool // 2
 
-# Generate the YAML content for the partition layout
-yaml_template = f"""api-version: 1
-disklabel: gpt
+# --- DYNAMISCHE DATEILISTE ERSTELLEN ---
+# Wir listen alle Dateien im OUTPUT_DIR auf, die in die BOOT-Partition sollen.
+# Wir schließen System-Files aus, die bereits in anderen Sektionen fest verplant sind.
+exclude_from_boot = [BOOT_FILENAME, ROOTFS_FILENAME, SEED_FILENAME, "layout.yaml"]
 
+boot_files_yaml = ""
+if os.path.exists(OUTPUT_DIR):
+    for filename in sorted(os.listdir(OUTPUT_DIR)):
+        if filename not in exclude_from_boot and os.path.isfile(os.path.join(OUTPUT_DIR, filename)):
+            boot_files_yaml += f"      - filename: {filename}\n"
+
+# YAML Template zusammenbauen
+yaml_template = f"""api-version: 1
+disklabel: msdos
 mmc:
   boot-partitions:
     enable: 1
@@ -38,55 +43,65 @@ mmc:
         input:
           filename: {BOOT_FILENAME}
 
+raw:
+  - input-offset: 0kiB
+    output-offset: 32kiB
+    input:
+      filename: {BOOT_FILENAME}
+
+clean:
+  - offset: 7168kiB
+    size: 64kiB
+  - offset: 7296kiB
+    size: 64kiB
+
 partitions:
-  - label: BOOT0
+  - label: boot0
     type: primary
     filesystem: fat32
     size: {BOOT_SIZE}MiB
-    offset: 4MiB
+    offset: 8MiB
     input:
-      - filename: {KERNEL_FILENAME}
-      - filename: {DTB_FILENAME}
-
-  - label: BOOT1
+{boot_files_yaml}
+  - label: boot1
     type: primary
     filesystem: fat32
     size: {BOOT_SIZE}MiB
     input:
-      - filename: {KERNEL_FILENAME}
-      - filename: {DTB_FILENAME}
-
-  - label: CONFIG
+{boot_files_yaml}
+  - label: config
     type: primary
     filesystem: ext4
     size: {CONFIG_SIZE}MiB
 
-  - label: ROOT0
-    type: primary
+  - label: root0
+    type: logical
     filesystem: null
+    size: {rootfs_size}MiB
+    block-size: 4kiB
+    input:
+      - filename: {ROOTFS_FILENAME}
+
+  - label: root1
+    type: logical
+    filesystem: null
+    block-size: 4kiB
     size: {rootfs_size}MiB
     input:
       - filename: {ROOTFS_FILENAME}
 
-  - label: ROOT1
-    type: primary
-    filesystem: null
-    size: {rootfs_size}MiB
-    input:
-      - filename: {ROOTFS_FILENAME}
-
-  - label: SNAPDATA
-    type: primary
+  - label: snapdata
+    type: logical
     filesystem: ext4
     size: {SNAP_SIZE}MiB
     input:
       - filename: {SEED_FILENAME}
 """
-# Write the generated YAML content to a file
+
 file_name = "layout.yaml"
 file_path = os.path.join(OUTPUT_DIR, file_name)
 
 with open(file_path, "w") as f:
     f.write(yaml_template)
 
-print(f"SUCCESS: {file_name} was created for {BOARD}.")
+print(f"SUCCESS: {file_name} created. Included {boot_files_yaml.count('filename')} files in BOOT partitions.")

@@ -21,81 +21,75 @@ python do_generate_partup_package() {
     import shutil
     import glob
 
-    # Pfade und Variablen vorbereiten
+    # 1. Variablen vorbereiten
     board = d.getVar('BOARDNAME')
     size = d.getVar('EMMC_SIZE_MB')
     deploy_dir = d.getVar('DEPLOY_DIR_IMAGE_PATH')
     rootfs_link = d.getVar('IMAGE_LINK_NAME')
-    seed_filename = "edge-imx93-yo-seed.tar.gz"
+    seed_path = f"{deploy_dir}/edge-imx93-yo-seed.tar.gz"
+    package_output = f"{board}.partup"
     yaml_config = "layout.yaml"
-    package_output = f"{board}.partup.pkg"
 
-    # 1. Temporäres Arbeitsverzeichnis für das Packaging erstellen
-    pkg_work_dir = os.path.join(deploy_dir, "partup_tmp")
+    # 2. Temporäres Arbeitsverzeichnis erstellen
+    pkg_work_dir = os.path.join(deploy_dir, "partup_work")
     if os.path.exists(pkg_work_dir):
         shutil.rmtree(pkg_work_dir)
     os.makedirs(pkg_work_dir)
 
-    # 2. Dynamische Dateiliste erstellen
-    # Wir nehmen die festen Dateien + alle .dtb, .dtbo und Boot-Files
+    # 3. Alle relevanten Dateien sammeln und REAL in pkg_work_dir kopieren
+    # (Das löst die Symlinks auf und stellt sicher, dass das Python-Skript sie sieht)
     search_patterns = [
-        "imx-boot",
-        "Image",
-        "oftree",
-        "tee.bin",
-        "bootenv.txt",
-        "config-partition.tar.gz",
-        f"{rootfs_link}.ext4",
-        "*.dtb",
-        "*.dtbo",
-        "*.bin" # für die M33 Cores
+        "imx-boot", "Image", "oftree", "tee.bin", "bootenv.txt",
+        "config-partition.tar.gz", f"{rootfs_link}.ext4",
+        "*.dtb", "*.dtbo", "*.bin"
     ]
 
-    files_to_include = []
-    for pattern in search_patterns:
-        # Suche im deploy_dir nach dem Pattern
-        found = glob.glob(os.path.join(deploy_dir, pattern))
-        for f in found:
-            # Wir nehmen nur die Dateinamen, keine Pfade
-            files_to_include.append(os.path.basename(f))
+    files_to_copy = []
+    for p in search_patterns:
+        files_to_copy.extend(glob.glob(os.path.join(deploy_dir, p)))
 
+    files_to_copy.append(seed_path)
 
-    files_to_include.append(os.path.basename(seed_filename))
-
-    # 3. YAML generieren (im deploy_dir, da das Skript es dort erwartet)
-    script = bb.utils.which(d.getVar('FILESPATH'), 'generate-partup.py')
-    try:
-        subprocess.check_call(['python3', script, board, size, deploy_dir, rootfs_link, seed_filename])
-        shutil.copy(os.path.join(deploy_dir, yaml_config), pkg_work_dir)
-    except Exception as e:
-        bb.fatal(f"Fehler bei YAML Erstellung: {e}")
-
-    # 4. Dateien "ent-symlinken" und in pkg_work_dir kopieren
-    resolved_names = []
-    for filename in set(files_to_include): # set() vermeidet Dopplungen
-        src = os.path.join(deploy_dir, filename)
+    for src in set(files_to_copy):
+        filename = os.path.basename(src)
         dst = os.path.join(pkg_work_dir, filename)
+        # Realpath auflösen, um SameFileError zu vermeiden und echte Daten zu kopieren
+        shutil.copyfile(os.path.realpath(src), dst)
 
-        if os.path.exists(src):
-            real_src = os.path.realpath(src)
-            shutil.copyfile(real_src, dst)
-            resolved_names.append(filename)
-    
-    shutil.copyfile(f"{deploy_dir}/{seed_filename}", os.path.join(pkg_work_dir, f"{seed_filename}"))
-    # 5. Partup im temporären Verzeichnis ausführen
+    # 4. Jetzt das Python-Skript aufrufen
+    # WICHTIG: Wir übergeben pkg_work_dir als Argument, damit es dort scannen kann
+    script = bb.utils.which(d.getVar('FILESPATH'), 'generate-partup.py')
+    if not script:
+        bb.fatal("Skript generate-partup.py nicht gefunden!")
+
     try:
-        cmd = ['partup', 'package', '-f', package_output] + resolved_names + [yaml_config]
+        # Aufruf: script BOARD SIZE WORK_DIR ROOTFS_LINK SEED_FILENAME
+        # Beachte: SEED_FILENAME nur als Name, da das Skript im WORK_DIR arbeitet
+        subprocess.check_call([
+            'python3', script, 
+            board, size, pkg_work_dir, rootfs_link, os.path.basename(seed_path)
+        ])
+    except subprocess.CalledProcessError as e:
+        bb.fatal(f"Fehler beim Erstellen der layout.yaml: {e}")
+
+    # 5. Partup Paket bauen (im pkg_work_dir)
+    try:
+        # Wir nehmen alle Dateien im Ordner (außer das Zielpaket selbst)
+        all_files = [f for f in os.listdir(pkg_work_dir) if f != yaml_config]
+        cmd = ['partup', 'package', '-f', package_output] + all_files + [yaml_config]
+        
         subprocess.check_call(cmd, cwd=pkg_work_dir)
         
-        # Ergebnis zurück ins deploy_dir
+        # Paket ins finale deploy_dir verschieben
         shutil.move(os.path.join(pkg_work_dir, package_output), os.path.join(deploy_dir, package_output))
-        bb.plain(f"SUCCESS: {package_output} erstellt mit {len(resolved_names)} Dateien.")
+        bb.plain(f"SUCCESS: {package_output} erstellt.")
     except subprocess.CalledProcessError as e:
-        bb.fatal(f"Partup Fehler: {e}")
+        bb.fatal(f"Partup packaging fehlgeschlagen: {e}")
     finally:
         # Aufräumen
         shutil.rmtree(pkg_work_dir)
 }
+
 
 # Add the generate_partup_package task to the build process
 addtask generate_partup_package after do_image_complete before do_build
