@@ -5,7 +5,7 @@ require recipes-images/images/phytec-headless-image.bb
 
 
 #  Default values for variables, can be overridden by local.conf or machine configuration
-BOARDNAME ?= "edge-imx93-yo"
+BOARDNAME ?= "edge-imx93-segin"
 EMMC_SIZE_MB ?= "7260"
 DEPLOY_DIR_IMAGE_PATH = "${DEPLOY_DIR_IMAGE}"
 
@@ -27,7 +27,7 @@ python do_generate_partup_package() {
     size = d.getVar('EMMC_SIZE_MB')
     deploy_dir = d.getVar('DEPLOY_DIR_IMAGE_PATH')
     rootfs_link = d.getVar('IMAGE_LINK_NAME')
-    seed_path = f"{deploy_dir}/edge-imx93-yo-seed.tar.gz"
+    seed_path = f"{deploy_dir}/{d.getVar('MACHINE')}-seed.tar.gz"
     package_output = f"{board}.partup"
     yaml_config = "layout.yaml"
 
@@ -94,12 +94,12 @@ modify_rootfs() {
     install -m 0644 ${THISDIR}/files/fstab ${IMAGE_ROOTFS}/etc/fstab
     current_work_dir=$(pwd)
     cd ${IMAGE_ROOTFS}
-    tar rf ${DEPLOY_DIR_IMAGE}/edge-imx93-yo-seed.tar var/lib/snapd var/snap
+    tar rf ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar var/lib/snapd var/snap
     cd ${current_work_dir}
     cat ${IMAGE_ROOTFS}/etc/fstab
     rm -rf ${IMAGE_ROOTFS}/var/lib/snapd
     rm -rf ${IMAGE_ROOTFS}/var/snap
-    gzip ${DEPLOY_DIR_IMAGE}/edge-imx93-yo-seed.tar
+    gzip ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar
 }
 
 
