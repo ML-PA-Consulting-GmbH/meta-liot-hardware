@@ -27,7 +27,8 @@ python do_generate_partup_package() {
     size = d.getVar('EMMC_SIZE_MB')
     deploy_dir = d.getVar('DEPLOY_DIR_IMAGE_PATH')
     rootfs_link = d.getVar('IMAGE_LINK_NAME')
-    seed_path = f"{deploy_dir}/{d.getVar('MACHINE')}-seed.tar.gz"
+    machine = d.getVar('MACHINE')
+    seed_path = f"{deploy_dir}/{machine}-seed.tar.gz"
     package_output = f"{board}.partup"
     yaml_config = "layout.yaml"
 
