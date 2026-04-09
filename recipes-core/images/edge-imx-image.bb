@@ -3,6 +3,7 @@ LICENSE = "CLOSED"
 
 require recipes-images/images/phytec-headless-image.bb
 
+
 #  Default values for variables, can be overridden by local.conf or machine configuration
 BOARDNAME ?= "edge-imx93-yo"
 EMMC_SIZE_MB ?= "7260"
@@ -12,7 +13,7 @@ IMAGE_FSTYPES += "partup"
 IMAGE_INSTALL:append = " snapd"
 
 # Add the generate-partup.py script to the source files for this recipe
-SRC_URI += "file://generate-partup.py"
+SRC_URI += " file://generate-partup.py "
 
 # This function will be called after the image is built to generate the partup package
 python do_generate_partup_package() {
@@ -89,7 +90,20 @@ python do_generate_partup_package() {
         # Aufräumen
         shutil.rmtree(pkg_work_dir)
 }
+modify_rootfs() {
+    install -m 0644 ${THISDIR}/files/fstab ${IMAGE_ROOTFS}/etc/fstab
+    current_work_dir=$(pwd)
+    cd ${IMAGE_ROOTFS}
+    tar rf ${DEPLOY_DIR_IMAGE}/edge-imx93-yo-seed.tar var/lib/snapd var/snap
+    cd ${current_work_dir}
+    cat ${IMAGE_ROOTFS}/etc/fstab
+    rm -rf ${IMAGE_ROOTFS}/var/lib/snapd
+    rm -rf ${IMAGE_ROOTFS}/var/snap
+    gzip ${DEPLOY_DIR_IMAGE}/edge-imx93-yo-seed.tar
+}
 
+
+ROOTFS_POSTPROCESS_COMMAND += " modify_rootfs; "
 
 # Add the generate_partup_package task to the build process
 addtask generate_partup_package after do_image_complete before do_build
