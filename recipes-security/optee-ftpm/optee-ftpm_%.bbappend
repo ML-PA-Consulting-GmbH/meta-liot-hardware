@@ -1,0 +1,1 @@
+COMPATIBLE_MACHINE:edge-imx93-segin = "edge-imx93-segin"
