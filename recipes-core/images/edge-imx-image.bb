@@ -100,7 +100,11 @@ modify_rootfs() {
     cat ${IMAGE_ROOTFS}/etc/fstab
     rm -rf ${IMAGE_ROOTFS}/var/lib/snapd
     rm -rf ${IMAGE_ROOTFS}/var/snap
-    gzip ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar
+    if [[ -f ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar.gz ]]; then
+        echo "Seed tar already exists, skipping gzip."
+    else
+        gzip ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar
+    fi 
 }
 
 
