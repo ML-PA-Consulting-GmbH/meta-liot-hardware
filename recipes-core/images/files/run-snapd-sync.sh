@@ -2,7 +2,7 @@
 set -euo pipefail
 
 LOCAL_DIR="/etc/systemd"
-REMOTE_DIR=/mnt/snapdata #"${REMOTE_DIR:-}"
+REMOTE_DIR=/mnt/snapdata/etc/systemd #"${REMOTE_DIR:-}"
 LOCK_FILE="/tmp/run-snapd-sync.lock"
 SYNC_INTERVAL="${SYNC_INTERVAL:-20}"
 RSYNC_BIN="${RSYNC_BIN:-rsync}"
