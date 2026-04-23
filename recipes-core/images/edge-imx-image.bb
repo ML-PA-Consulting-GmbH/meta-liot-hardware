@@ -96,9 +96,9 @@ modify_rootfs() {
     install -m 0755 ${THISDIR}/files/run-snapd-sync.sh ${IMAGE_ROOTFS}/usr/bin/run-snapd-sync.sh
     install -d ${IMAGE_ROOTFS}/etc/systemd/system/sysinit.target.wants
     install -m 0644 ${THISDIR}/files/run-snapd-sync.service ${IMAGE_ROOTFS}/etc/systemd/system/run-snapd-sync.service
+    ln -sf /etc/systemd/system/run-snapd-sync.service ${IMAGE_ROOTFS}/etc/systemd/system/sysinit.target.wants/run-snapd-sync.service
     current_work_dir=$(pwd)
     cd ${IMAGE_ROOTFS}
-    ln -sf /etc/systemd/system/run-snapd-sync.service /etc/systemd/system/sysinit.target.wants/run-snapd-sync.service
     rm -f ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar.gz
     tar cf ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar var/lib/snapd var/snap
     cd ${current_work_dir}
