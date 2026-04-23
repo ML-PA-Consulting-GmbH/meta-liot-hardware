@@ -95,16 +95,13 @@ modify_rootfs() {
     install -m 0644 ${THISDIR}/files/fstab ${IMAGE_ROOTFS}/etc/fstab
     current_work_dir=$(pwd)
     cd ${IMAGE_ROOTFS}
-    tar rf ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar var/lib/snapd var/snap
+    rm -f ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar.gz
+    tar cf ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar var/lib/snapd var/snap
     cd ${current_work_dir}
     cat ${IMAGE_ROOTFS}/etc/fstab
     rm -rf ${IMAGE_ROOTFS}/var/lib/snapd
     rm -rf ${IMAGE_ROOTFS}/var/snap
-    if [[ -f ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar.gz ]]; then
-        echo "Seed tar already exists, skipping gzip."
-    else
-        gzip ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar
-    fi 
+    gzip ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar
 }
 
 
