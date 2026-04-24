@@ -100,11 +100,7 @@ modify_rootfs() {
     current_work_dir=$(pwd)
     cd ${IMAGE_ROOTFS}
     rm -f ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar.gz
-    if [ -f ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar ]; then
-        tar rf ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar var/lib/snapd var/snap
-    else
-        tar cf ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar var/lib/snapd var/snap
-    fi
+    tar rf ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar var/lib/snapd var/snap
     cd ${current_work_dir}
     cat ${IMAGE_ROOTFS}/etc/fstab
     rm -rf ${IMAGE_ROOTFS}/var/lib/snapd
