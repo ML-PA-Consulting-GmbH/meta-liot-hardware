@@ -93,6 +93,7 @@ partitions:
   - label: snapdata
     type: logical
     filesystem: ext4
+    expand: true
     size: {SNAP_SIZE}MiB
     input:
       - filename: {SEED_FILENAME}
