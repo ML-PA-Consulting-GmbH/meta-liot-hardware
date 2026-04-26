@@ -1,0 +1,7 @@
+COMPATIBLE_MACHINE:edge-imx8mp-pollux = "edge-imx8mp-pollux"
+COMPATIBLE_MACHINE:edge-imx93-segin = "edge-imx93-segin"
+COMPATIBLE_MACHINE:edge-imx93-nash  = "edge-imx93-nash"
+COMPATIBLE_MACHINE:edge-imx8mm-polis = "edge-imx8mm-polis"
+COMPATIBLE_MACHINE:edge-imx8mm-tauri-l = "edge-imx8mm-tauri-l"
+COMPATIBLE_MACHINE:edge-am62lxx-libra  = "edge-am62lxx-libra"
+#COMPATIBLE_MACHINE:edge-imx6ul-tauri-s = "edge-imx6ul-tauri-s"

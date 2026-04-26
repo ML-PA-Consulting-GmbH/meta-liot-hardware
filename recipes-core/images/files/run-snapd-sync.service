@@ -1,0 +1,17 @@
+[Unit]
+Description=Sync systemd configuration to snapd rootfs
+DefaultDependencies=no
+After=local-fs.target
+Before=snapd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/run-snapd-sync.sh --rootfs /mnt/snapdata
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=run-snapd-sync
+
+[Install]
+WantedBy=sysinit.target

@@ -1,0 +1,1 @@
+RDEPENDS:${PN}:remove = "firmware-nxp-wifi-nxpiw612-sdio"
