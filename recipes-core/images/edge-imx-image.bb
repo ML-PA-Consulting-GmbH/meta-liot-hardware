@@ -2,12 +2,14 @@ SUMMARY = "edge yocto custom image with RAUC, snapd with partup packaging"
 LICENSE = "CLOSED"
 
 require recipes-images/images/phytec-headless-image.bb
+inherit image_types_partup
 
 
 #  Default values for variables, can be overridden by local.conf or machine configuration
 BOARDNAME ?= "edge-imx93-segin"
 EMMC_SIZE_MB ?= "7260"
 DEPLOY_DIR_IMAGE_PATH = "${DEPLOY_DIR_IMAGE}"
+BOOTLOADER_BINARY ?= "imx-boot"
 
 IMAGE_FSTYPES += "partup"
 IMAGE_INSTALL:append = " snapd"
@@ -29,6 +31,7 @@ python do_generate_partup_package() {
     rootfs_link = d.getVar('IMAGE_LINK_NAME')
     machine = d.getVar('MACHINE')
     seed_path = f"{deploy_dir}/{machine}-seed.tar.gz"
+    bootloader_binary = d.getVar('BOOTLOADER_BINARY')
     package_output = f"{board}.partup"
     yaml_config = "layout.yaml"
 
@@ -41,8 +44,8 @@ python do_generate_partup_package() {
     # 3. Alle relevanten Dateien sammeln und REAL in pkg_work_dir kopieren
     # (Das löst die Symlinks auf und stellt sicher, dass das Python-Skript sie sieht)
     search_patterns = [
-        "imx-boot", "Image", "oftree", "tee.bin", "bootenv.txt",
-        "config-partition.tar.gz", f"{rootfs_link}.ext4",
+        bootloader_binary, "fitImage", "Image", "oftree", "tee.bin", "bootenv.txt",
+        "boot.scr.uimg", "config-partition.tar.gz", f"{rootfs_link}.ext4",
         "*.dtb", "*.dtbo", "*.bin"
     ]
 
@@ -68,8 +71,9 @@ python do_generate_partup_package() {
         # Aufruf: script BOARD SIZE WORK_DIR ROOTFS_LINK SEED_FILENAME
         # Beachte: SEED_FILENAME nur als Name, da das Skript im WORK_DIR arbeitet
         subprocess.check_call([
-            'python3', script, 
-            board, size, pkg_work_dir, rootfs_link, os.path.basename(seed_path)
+            'python3', script,
+            board, size, pkg_work_dir, rootfs_link, os.path.basename(seed_path),
+            bootloader_binary
         ])
     except subprocess.CalledProcessError as e:
         bb.fatal(f"Fehler beim Erstellen der layout.yaml: {e}")
@@ -92,11 +96,18 @@ python do_generate_partup_package() {
         shutil.rmtree(pkg_work_dir)
 }
 modify_rootfs() {
-    install -m 0644 ${THISDIR}/files/fstab ${IMAGE_ROOTFS}/etc/fstab
+    FSTAB_FILE=""
+    case "${MACHINE}" in
+        *imx93*)  FSTAB_FILE=fstab.imx93 ;;
+        *imx8mp*) FSTAB_FILE=fstab.imx8mp ;;
+    esac
+    install -m 0644 ${THISDIR}/files/${FSTAB_FILE} ${IMAGE_ROOTFS}/etc/fstab
     install -m 0755 ${THISDIR}/files/run-snapd-sync.sh ${IMAGE_ROOTFS}/usr/bin/run-snapd-sync.sh
     install -d ${IMAGE_ROOTFS}/etc/systemd/system/sysinit.target.wants
-    install -m 0644 ${THISDIR}/files/run-snapd-sync.service ${IMAGE_ROOTFS}/etc/systemd/system/run-snapd-sync.service
+    install -m 0755 ${DEPLOY_DIR_IMAGE}/provisioning/liot-provisioning ${IMAGE_ROOTFS}/usr/bin/liot-provisioning
     ln -sf /etc/systemd/system/run-snapd-sync.service ${IMAGE_ROOTFS}/etc/systemd/system/sysinit.target.wants/run-snapd-sync.service
+    install -m 0644 ${DEPLOY_DIR_IMAGE}/provisioning/phyhub-liot-device-provisioning-basic.service ${IMAGE_ROOTFS}/etc/systemd/system/phyhub-liot-device-provisioning-basic.service
+    ln -sf /etc/systemd/system/phyhub-liot-device-provisioning-basic.service ${IMAGE_ROOTFS}/etc/systemd/system/sysinit.target.wants/phyhub-liot-device-provisioning-basic.service
     current_work_dir=$(pwd)
     cd ${IMAGE_ROOTFS}
     rm -f ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar.gz
@@ -116,3 +127,4 @@ addtask generate_partup_package after do_image_complete before do_build
 
 # Ensure that the generate_partup_package task runs after the necessary files are in place
 do_generate_partup_package[depends] += "partup-native:do_populate_sysroot"
+do_generate_partup_package[depends] += "virtual/bootloader:do_deploy"

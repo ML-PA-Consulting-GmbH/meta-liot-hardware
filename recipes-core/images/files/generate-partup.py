@@ -8,10 +8,10 @@ TOTAL_MB      = int(sys.argv[2])
 OUTPUT_DIR    = sys.argv[3]  # Dies sollte nun dein pkg_work_dir sein
 ROOTFS_BASE   = sys.argv[4]
 SEED_FILENAME = os.path.basename(sys.argv[5]) # Nur Dateiname
+BOOT_FILENAME = sys.argv[6] if len(sys.argv) > 6 else "imx-boot"
 
 # Dateinamen definieren
 ROOTFS_FILENAME = f"{ROOTFS_BASE}.ext4"
-BOOT_FILENAME   = "imx-boot"
 
 # Partitionen berechnen
 BOOT_SIZE   = 128
