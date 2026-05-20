@@ -104,10 +104,12 @@ modify_rootfs() {
     install -m 0644 ${THISDIR}/files/${FSTAB_FILE} ${IMAGE_ROOTFS}/etc/fstab
     install -m 0755 ${THISDIR}/files/run-snapd-sync.sh ${IMAGE_ROOTFS}/usr/bin/run-snapd-sync.sh
     install -d ${IMAGE_ROOTFS}/etc/systemd/system/sysinit.target.wants
-    install -m 0755 ${DEPLOY_DIR_IMAGE}/provisioning/liot-provisioning ${IMAGE_ROOTFS}/usr/bin/liot-provisioning
-    ln -sf /etc/systemd/system/run-snapd-sync.service ${IMAGE_ROOTFS}/etc/systemd/system/sysinit.target.wants/run-snapd-sync.service
-    install -m 0644 ${DEPLOY_DIR_IMAGE}/provisioning/phyhub-liot-device-provisioning-basic.service ${IMAGE_ROOTFS}/etc/systemd/system/phyhub-liot-device-provisioning-basic.service
-    ln -sf /etc/systemd/system/phyhub-liot-device-provisioning-basic.service ${IMAGE_ROOTFS}/etc/systemd/system/sysinit.target.wants/phyhub-liot-device-provisioning-basic.service
+    if [ -d "${DEPLOY_DIR_IMAGE}/provisioning" ]; then
+        install -m 0755 ${DEPLOY_DIR_IMAGE}/provisioning/liot-provisioning ${IMAGE_ROOTFS}/usr/bin/liot-provisioning
+        ln -sf /etc/systemd/system/run-snapd-sync.service ${IMAGE_ROOTFS}/etc/systemd/system/sysinit.target.wants/run-snapd-sync.service
+        install -m 0644 ${DEPLOY_DIR_IMAGE}/provisioning/phyhub-liot-device-provisioning-basic.service ${IMAGE_ROOTFS}/etc/systemd/system/phyhub-liot-device-provisioning-basic.service
+        ln -sf /etc/systemd/system/phyhub-liot-device-provisioning-basic.service ${IMAGE_ROOTFS}/etc/systemd/system/sysinit.target.wants/phyhub-liot-device-provisioning-basic.service
+    fi
     current_work_dir=$(pwd)
     cd ${IMAGE_ROOTFS}
     rm -f ${DEPLOY_DIR_IMAGE}/${MACHINE}-seed.tar.gz
